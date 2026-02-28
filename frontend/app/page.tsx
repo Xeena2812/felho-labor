@@ -1,66 +1,99 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import Link from "next/link";
+import { DUMMY_PHOTOS, Photo, formatDate } from "@/lib/data";
+
+type SortKey = "name" | "date";
+
+export default function HomePage() {
+  const [photos, setPhotos] = useState<Photo[]>(DUMMY_PHOTOS);
+  const [sort, setSort] = useState<SortKey>("date");
+  const [newName, setNewName] = useState("");
+  const [uploadError, setUploadError] = useState("");
+
+  const sorted = [...photos].sort((a, b) =>
+    sort === "name"
+      ? a.name.localeCompare(b.name)
+      : b.uploadedAt.localeCompare(a.uploadedAt)
+  );
+
+  function handleUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newName.trim()) return setUploadError("Name is required.");
+    if (newName.length > 40) return setUploadError("Name must be 40 characters or fewer.");
+
+    const photo: Photo = {
+      id: Date.now(),
+      name: newName.trim(),
+      uploadedAt: new Date().toISOString(),
+      imageUrl: "/photo.jpg",
+    };
+    setPhotos((prev) => [...prev, photo]);
+    setNewName("");
+    setUploadError("");
+  }
+
+  function handleDelete(id: number) {
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="page">
+      <h1>Photos</h1>
+
+      {/* Sort controls */}
+      <div className="sort-bar">
+        <span>Sort by:</span>
+        <button className={sort === "date" ? "active" : ""} onClick={() => setSort("date")}>Date</button>
+        <button className={sort === "name" ? "active" : ""} onClick={() => setSort("name")}>Name</button>
+      </div>
+
+      {/* Photo list */}
+      <div className="section" style={{ padding: 0 }}>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Uploaded</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((photo) => (
+              <tr key={photo.id}>
+                <td><Link href={`/photos/${photo.id}`}>{photo.name}</Link></td>
+                <td>{formatDate(photo.uploadedAt)}</td>
+                <td><button className="danger" onClick={() => handleDelete(photo.id)}>Delete</button></td>
+              </tr>
+            ))}
+            {sorted.length === 0 && (
+              <tr><td colSpan={3} style={{ color: "#888" }}>No photos yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="section">
+        <h2>Upload Photo</h2>
+        <form onSubmit={handleUpload}>
+          <label htmlFor="name">Name (max 40 chars)</label>
+          <input
+            id="name"
+            type="text"
+            maxLength={40}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="My photo"
+          />
+          <label htmlFor="file">File</label>
+          <input id="file" type="file" accept="image/*" />
+          {uploadError && <p className="error">{uploadError}</p>}
+          <div className="form-actions">
+            <button type="submit" className="primary">Upload</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
