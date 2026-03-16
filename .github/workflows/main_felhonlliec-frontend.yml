@@ -39,7 +39,11 @@ jobs:
           npm ci
           npm run build
           npm run test --if-present
-          npm prune --omit=dev
+
+      - name: Verify Next runtime dependency
+        run: |
+          test -f node_modules/next/dist/bin/next
+          ./node_modules/.bin/next --version
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
