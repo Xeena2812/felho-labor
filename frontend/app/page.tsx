@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Photo } from "@/lib/data";
 import { formatDate } from "@/lib/data";
 import { createPhoto, deletePhoto, fetchPhotos } from "@/lib/api";
+import { getAuthEmail, subscribeAuthChanged } from "@/lib/authSession";
 
 type SortKey = "name" | "date";
 type SortDirection = "asc" | "desc";
@@ -15,9 +16,15 @@ export default function HomePage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [newName, setNewName] = useState("");
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState("");
+
+  useEffect(() => {
+    setCurrentUserEmail(getAuthEmail());
+    return subscribeAuthChanged(() => setCurrentUserEmail(getAuthEmail()));
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -63,6 +70,7 @@ export default function HomePage() {
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
+    if (!currentUserEmail) return setUploadError("Please log in to upload photos.");
     if (!newName.trim()) return setUploadError("Name is required.");
     if (newName.length > 40) return setUploadError("Name must be 40 characters or fewer.");
 
@@ -78,6 +86,11 @@ export default function HomePage() {
   }
 
   async function handleDelete(id: number) {
+    if (!currentUserEmail) {
+      setApiError("Please log in to delete photos.");
+      return;
+    }
+
     try {
       await deletePhoto(id);
       setPhotos((prev) => prev.filter((p) => p.id !== id));
@@ -120,7 +133,7 @@ export default function HomePage() {
             <tr>
               <th>Name</th>
               <th>Uploaded</th>
-              <th></th>
+              {currentUserEmail && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -128,7 +141,9 @@ export default function HomePage() {
               <tr key={photo.id}>
                 <td><Link href={`/photos/${photo.id}`}>{photo.name}</Link></td>
                 <td>{formatDate(photo.uploadedAt)}</td>
-                <td><button className="danger" onClick={() => handleDelete(photo.id)}>Delete</button></td>
+                {currentUserEmail && (
+                  <td><button className="danger" onClick={() => handleDelete(photo.id)}>Delete</button></td>
+                )}
               </tr>
             ))}
             {loading && (
@@ -141,26 +156,34 @@ export default function HomePage() {
         </table>
       </div>
 
-      <div className="section">
-        <h2>Upload Photo</h2>
-        <form onSubmit={handleUpload}>
-          <label htmlFor="name">Name (max 40 chars)</label>
-          <input
-            id="name"
-            type="text"
-            maxLength={40}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="My photo"
-          />
-          <label htmlFor="file">File</label>
-          <input id="file" type="file" accept="image/*" onChange={handleFileChange} />
-          {uploadError && <p className="error">{uploadError}</p>}
-          <div className="form-actions">
-            <button type="submit" className="primary">Upload</button>
-          </div>
-        </form>
-      </div>
+      {currentUserEmail && (
+        <div className="section">
+          <h2>Upload Photo</h2>
+          <form onSubmit={handleUpload}>
+            <label htmlFor="name">Name (max 40 chars)</label>
+            <input
+              id="name"
+              type="text"
+              maxLength={40}
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="My photo"
+            />
+            <label htmlFor="file">File</label>
+            <input id="file" type="file" accept="image/*" onChange={handleFileChange} />
+            {uploadError && <p className="error">{uploadError}</p>}
+            <div className="form-actions">
+              <button type="submit" className="primary">Upload</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {!currentUserEmail && (
+        <p style={{ color: "#555" }}>
+          <Link href="/login">Log in</Link> to upload and delete photos.
+        </p>
+      )}
     </div>
   );
 }

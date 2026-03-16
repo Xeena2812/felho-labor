@@ -99,3 +99,6 @@ next-env.d.ts
 
 *.log
 .vscode/
+
+# local sqlite database
+backend/PhotoAsAService.Api/photoasa.db
