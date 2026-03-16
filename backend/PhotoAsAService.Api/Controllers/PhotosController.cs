@@ -10,16 +10,16 @@ namespace PhotoAsAService.Api.Controllers;
 public class PhotosController(IPhotoService photoService) : ControllerBase
 {
 	[HttpGet]
-	public ActionResult GetAll([FromQuery] string sortBy = "date", [FromQuery] bool descending = true)
+	public async Task<ActionResult> GetAll([FromQuery] string sortBy = "date", [FromQuery] bool descending = true)
 	{
-		var photos = photoService.GetAll(sortBy, descending);
+		var photos = await photoService.GetAllAsync(sortBy, descending);
 		return Ok(photos);
 	}
 
 	[HttpGet("{id:int}")]
-	public ActionResult GetById(int id)
+	public async Task<ActionResult> GetById(int id)
 	{
-		var photo = photoService.GetById(id);
+		var photo = await photoService.GetByIdAsync(id);
 		if (photo is null)
 		{
 			return NotFound();
@@ -30,7 +30,7 @@ public class PhotosController(IPhotoService photoService) : ControllerBase
 
 	[Authorize]
 	[HttpPost]
-	public ActionResult Create([FromBody] CreatePhotoDto request)
+	public async Task<ActionResult> Create([FromForm] CreatePhotoDto request)
 	{
 		var validationError = ValidateName(request.Name);
 		if (validationError is not null)
@@ -38,15 +38,15 @@ public class PhotosController(IPhotoService photoService) : ControllerBase
 			return BadRequest(validationError);
 		}
 
-		var created = photoService.Create(request.Name.Trim(), request.ImageUrl);
+		var created = await photoService.CreateAsync(request.Name.Trim(), request.File);
 		return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
 	}
 
 	[Authorize]
 	[HttpDelete("{id:int}")]
-	public ActionResult Delete(int id)
+	public async Task<ActionResult> Delete(int id)
 	{
-		var deleted = photoService.Delete(id);
+		var deleted = await photoService.DeleteAsync(id);
 		return deleted ? NoContent() : NotFound();
 	}
 

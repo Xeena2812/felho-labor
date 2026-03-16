@@ -1,22 +1,16 @@
+using Microsoft.EntityFrameworkCore;
+using PhotoAsAService.Api.Data;
 using PhotoAsAService.Api.Models;
 
 namespace PhotoAsAService.Api.Services;
 
-public class PhotoService : IPhotoService
+public class PhotoService(ApplicationDbContext dbContext, IWebHostEnvironment environment) : IPhotoService
 {
-	private readonly object _lock = new();
-	private readonly List<Photo> _photos =
-	[
-		new() { Id = 1, Name = "Photo 1", UploadedAt = DateTime.UtcNow.AddDays(-5), ImageUrl = "/photo.jpg" },
-		new() { Id = 2, Name = "Photo 2", UploadedAt = DateTime.UtcNow.AddDays(-3), ImageUrl = "/photo.jpg" },
-		new() { Id = 3, Name = "Photo 3", UploadedAt = DateTime.UtcNow.AddDays(-1), ImageUrl = "/photo.jpg" }
-	];
+	private const string DefaultImageUrl = "/photo.jpg";
 
-	private int _nextId = 4;
-
-	public IReadOnlyList<Photo> GetAll(string sortBy, bool descending)
+	public async Task<IReadOnlyList<Photo>> GetAllAsync(string sortBy, bool descending)
 	{
-		IEnumerable<Photo> query = _photos;
+		IQueryable<Photo> query = dbContext.Photos.AsNoTracking();
 
 		query = sortBy.ToLowerInvariant() switch
 		{
@@ -24,46 +18,76 @@ public class PhotoService : IPhotoService
 			_ => descending ? query.OrderByDescending(p => p.UploadedAt) : query.OrderBy(p => p.UploadedAt)
 		};
 
-		return [.. query];
+		return await query.ToListAsync();
 	}
 
-	public Photo? GetById(int id)
+	public async Task<Photo?> GetByIdAsync(int id)
 	{
-		lock (_lock)
+		return await dbContext.Photos.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+	}
+
+	public async Task<Photo> CreateAsync(string name, IFormFile? file)
+	{
+		var imageUrl = await SaveUploadedFileAsync(file);
+		var photo = new Photo
 		{
-			return _photos.FirstOrDefault(p => p.Id == id);
+			Name = name,
+			UploadedAt = DateTime.UtcNow,
+			ImageUrl = imageUrl
+		};
+
+		dbContext.Photos.Add(photo);
+		await dbContext.SaveChangesAsync();
+		return photo;
+	}
+
+	public async Task<bool> DeleteAsync(int id)
+	{
+		var photo = await dbContext.Photos.FirstOrDefaultAsync(p => p.Id == id);
+		if (photo is null)
+		{
+			return false;
 		}
+
+		dbContext.Photos.Remove(photo);
+		await dbContext.SaveChangesAsync();
+		DeleteStoredFileIfExists(photo.ImageUrl);
+		return true;
 	}
 
-	public Photo Create(string name, string? imageUrl)
+	private async Task<string> SaveUploadedFileAsync(IFormFile? file)
 	{
-		lock (_lock)
+		if (file is null || file.Length == 0)
 		{
-			var photo = new Photo
-			{
-				Id = _nextId++,
-				Name = name,
-				UploadedAt = DateTime.UtcNow,
-				ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? "/photo.jpg" : imageUrl
-			};
-
-			_photos.Add(photo);
-			return photo;
+			return DefaultImageUrl;
 		}
+
+		var uploadsDirectory = Path.Combine(environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"), "uploads");
+		Directory.CreateDirectory(uploadsDirectory);
+
+		var extension = Path.GetExtension(file.FileName);
+		var safeExtension = string.IsNullOrWhiteSpace(extension) ? ".jpg" : extension;
+		var fileName = $"{Guid.NewGuid():N}{safeExtension}";
+		var filePath = Path.Combine(uploadsDirectory, fileName);
+
+		await using var stream = File.Create(filePath);
+		await file.CopyToAsync(stream);
+
+		return $"/uploads/{fileName}";
 	}
 
-	public bool Delete(int id)
+	private void DeleteStoredFileIfExists(string imageUrl)
 	{
-		lock (_lock)
+		if (!imageUrl.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
 		{
-			var photo = _photos.FirstOrDefault(p => p.Id == id);
-			if (photo is null)
-			{
-				return false;
-			}
+			return;
+		}
 
-			_photos.Remove(photo);
-			return true;
+		var relativePath = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+		var absolutePath = Path.Combine(environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"), relativePath);
+		if (File.Exists(absolutePath))
+		{
+			File.Delete(absolutePath);
 		}
 	}
 }

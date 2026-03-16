@@ -4,8 +4,8 @@ namespace PhotoAsAService.Api.Services;
 
 public interface IPhotoService
 {
-	IReadOnlyList<Photo> GetAll(string sortBy, bool descending);
-	Photo? GetById(int id);
-	Photo Create(string name, string? imageUrl);
-	bool Delete(int id);
+	Task<IReadOnlyList<Photo>> GetAllAsync(string sortBy, bool descending);
+	Task<Photo?> GetByIdAsync(int id);
+	Task<Photo> CreateAsync(string name, IFormFile? file);
+	Task<bool> DeleteAsync(int id);
 }

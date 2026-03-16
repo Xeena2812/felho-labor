@@ -102,3 +102,8 @@ next-env.d.ts
 
 # local sqlite database
 backend/PhotoAsAService.Api/photoasa.db
+backend/PhotoAsAService.Api/photoasa.db-shm
+backend/PhotoAsAService.Api/photoasa.db-wal
+
+# local uploaded files
+backend/PhotoAsAService.Api/wwwroot/uploads/
