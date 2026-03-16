@@ -46,7 +46,6 @@ export default function PhotoPage() {
 			<Link href="/">← Back</Link>
 			<h1 style={{ marginTop: "1rem" }}>{photo.name}</h1>
 			<p className="meta">Uploaded: {formatDate(photo.uploadedAt)}</p>
-			{/* eslint-disable-next-line @next/next/no-img-element */}
 			<img src={photo.imageUrl} alt={photo.name} />
 		</div>
 	);

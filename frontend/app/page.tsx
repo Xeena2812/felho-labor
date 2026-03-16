@@ -15,7 +15,7 @@ export default function HomePage() {
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [newName, setNewName] = useState("");
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -46,26 +46,18 @@ export default function HomePage() {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) {
-      setSelectedImageUrl(null);
+      setSelectedFile(null);
       return;
     }
 
     if (!file.type.startsWith("image/")) {
       setUploadError("Please select an image file.");
-      setSelectedImageUrl(null);
+      setSelectedFile(null);
       return;
     }
 
     setUploadError("");
-
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error("Could not read file."));
-      reader.readAsDataURL(file);
-    });
-
-    setSelectedImageUrl(dataUrl);
+    setSelectedFile(file);
   }
 
   async function handleUpload(e: React.FormEvent) {
@@ -76,10 +68,10 @@ export default function HomePage() {
 
     try {
       setUploadError("");
-      const created = await createPhoto(newName.trim(), selectedImageUrl ?? undefined);
+      const created = await createPhoto(newName.trim(), selectedFile);
       setPhotos((prev) => [created, ...prev]);
       setNewName("");
-      setSelectedImageUrl(null);
+      setSelectedFile(null);
     } catch {
       setUploadError("Upload failed. Please try again.");
     }
@@ -103,7 +95,6 @@ export default function HomePage() {
     <div className="page">
       <h1>Photos</h1>
 
-      {/* Sort controls */}
       <div className="sort-bar">
         <span>Sort by:</span>
         <select
@@ -126,7 +117,6 @@ export default function HomePage() {
       </div>
       {apiError && <p className="error" style={{ marginBottom: "0.75rem" }}>{apiError}</p>}
 
-      {/* Photo list */}
       <div className="section" style={{ padding: 0 }}>
         <table>
           <thead>

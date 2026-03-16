@@ -12,7 +12,11 @@ export async function fetchPhotos(sortBy: "name" | "date", descending: boolean):
 		throw new Error("Failed to load photos.");
 	}
 
-	return response.json() as Promise<Photo[]>;
+	const photos = await (response.json() as Promise<Photo[]>);
+	return photos.map((photo) => ({
+		...photo,
+		imageUrl: photo.imageUrl.startsWith("/uploads/") ? `${API_BASE_URL}${photo.imageUrl}` : photo.imageUrl,
+	}));
 }
 
 export async function fetchPhotoById(id: number): Promise<Photo | null> {
@@ -29,22 +33,35 @@ export async function fetchPhotoById(id: number): Promise<Photo | null> {
 		throw new Error("Failed to load photo.");
 	}
 
-	return response.json() as Promise<Photo>;
+	const photo = await (response.json() as Promise<Photo>);
+	return {
+		...photo,
+		imageUrl: photo.imageUrl.startsWith("/uploads/") ? `${API_BASE_URL}${photo.imageUrl}` : photo.imageUrl,
+	};
 }
 
-export async function createPhoto(name: string, imageUrl?: string): Promise<Photo> {
+export async function createPhoto(name: string, file?: File | null): Promise<Photo> {
+	const formData = new FormData();
+	formData.append("name", name);
+	if (file) {
+		formData.append("file", file);
+	}
+
 	const response = await fetch(`${API_BASE_URL}/api/photos`, {
 		method: "POST",
 		credentials: "include",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ name, imageUrl }),
+		body: formData,
 	});
 
 	if (!response.ok) {
 		throw new Error("Failed to create photo.");
 	}
 
-	return response.json() as Promise<Photo>;
+	const photo = await (response.json() as Promise<Photo>);
+	return {
+		...photo,
+		imageUrl: photo.imageUrl.startsWith("/uploads/") ? `${API_BASE_URL}${photo.imageUrl}` : photo.imageUrl,
+	};
 }
 
 export async function deletePhoto(id: number): Promise<void> {
