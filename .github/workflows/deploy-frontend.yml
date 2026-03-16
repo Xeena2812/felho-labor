@@ -1,0 +1,46 @@
+name: Deploy Frontend
+
+on:
+    push:
+        branches: ["main"]
+        paths:
+            - "frontend/**"
+            - ".github/workflows/deploy-frontend.yml"
+    workflow_dispatch:
+
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+
+        defaults:
+            run:
+                working-directory: frontend
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  cache: "npm"
+                  cache-dependency-path: frontend/package-lock.json
+
+            - name: Install
+              run: npm ci
+
+            - name: Build
+              env:
+                  NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+              run: npm run build
+
+            - name: Prune dev dependencies
+              run: npm prune --omit=dev
+
+            - name: Deploy to Azure Web App
+              uses: azure/webapps-deploy@v3
+              with:
+                  app-name: ${{ vars.AZURE_FRONTEND_APP_NAME }}
+                  publish-profile: ${{ secrets.AZURE_FRONTEND_PUBLISH_PROFILE }}
+                  package: frontend
