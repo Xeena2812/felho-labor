@@ -1,6 +1,9 @@
+using PhotoAsAService.Api.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSingleton<IPhotoService, PhotoService>();
 
 builder.Services.AddCors(options =>
 {
