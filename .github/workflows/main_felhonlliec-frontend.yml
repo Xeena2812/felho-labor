@@ -7,9 +7,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "frontend/**"
-      - ".github/workflows/main_felhonlliec-frontend.yml"
   workflow_dispatch:
 
 jobs:
@@ -18,37 +15,27 @@ jobs:
     permissions:
       contents: read #This is required for actions/checkout
 
-    defaults:
-      run:
-        working-directory: frontend
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: "22.x"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          node-version: '22.x'
 
       - name: npm install, build, and test
         env:
           NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
         run: |
-          npm ci
-          npm run build
+          cd frontend
+          npm install
+          npm run build --if-present
           npm run test --if-present
-
-      - name: Verify Next runtime dependency
-        run: |
-          test -f node_modules/next/dist/bin/next
-          ./node_modules/.bin/next --version
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-app
+          name: node-app
           path: frontend
 
   deploy:
@@ -62,8 +49,8 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: frontend-app
-          path: ${{ github.workspace }}/frontend-app
+          name: node-app
+          path: frontend-app
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -72,10 +59,11 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_ACADC2A0A0B6441990966AC24B0ACDE3 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B9189FAD26FC42369F453CD568BE71C5 }}
 
-      - name: "Deploy to Azure Web App"
+      - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "felhonlliec-frontend"
-          slot-name: "Production"
-          package: ${{ github.workspace }}/frontend-app
+          app-name: 'felhonlliec-frontend'
+          slot-name: 'Production'
+          package: frontend-app
+          
