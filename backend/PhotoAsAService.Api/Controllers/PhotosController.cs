@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PhotoAsAService.Api.DTOs;
 using PhotoAsAService.Api.Services;
@@ -27,6 +28,7 @@ public class PhotosController(IPhotoService photoService) : ControllerBase
 		return Ok(photo);
 	}
 
+	[Authorize]
 	[HttpPost]
 	public ActionResult Create([FromBody] CreatePhotoDto request)
 	{
@@ -40,6 +42,7 @@ public class PhotosController(IPhotoService photoService) : ControllerBase
 		return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
 	}
 
+	[Authorize]
 	[HttpDelete("{id:int}")]
 	public ActionResult Delete(int id)
 	{
