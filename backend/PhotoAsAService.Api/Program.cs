@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddScoped<IPhotoService, PhotoService>();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services
     .AddIdentityCore<IdentityUser>(options =>
@@ -50,24 +50,6 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
-
-var sqliteConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrWhiteSpace(sqliteConnection))
-{
-    var dataSourceSegment = sqliteConnection
-        .Split(';', StringSplitOptions.RemoveEmptyEntries)
-        .FirstOrDefault(part => part.TrimStart().StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase));
-
-    var dataSourcePath = dataSourceSegment?
-        .Split('=', 2, StringSplitOptions.TrimEntries)
-        .ElementAtOrDefault(1);
-
-    var dbDirectory = Path.GetDirectoryName(dataSourcePath);
-    if (!string.IsNullOrWhiteSpace(dbDirectory))
-    {
-        Directory.CreateDirectory(dbDirectory);
-    }
-}
 
 var webRootPath = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
 Directory.CreateDirectory(Path.Combine(webRootPath, "uploads"));
