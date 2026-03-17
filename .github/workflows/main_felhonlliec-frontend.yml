@@ -7,6 +7,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/main_felhonlliec-frontend.yml"
   workflow_dispatch:
 
 jobs:
