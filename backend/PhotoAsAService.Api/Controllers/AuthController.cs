@@ -63,4 +63,24 @@ public class AuthController(
 		await signInManager.SignOutAsync();
 		return Ok();
 	}
+
+	[Authorize]
+	[HttpDelete("delete")]
+	public async Task<ActionResult> DeleteCurrentUser()
+	{
+		var user = await userManager.GetUserAsync(User);
+		if (user is null)
+		{
+			return Unauthorized();
+		}
+
+		var result = await userManager.DeleteAsync(user);
+		if (!result.Succeeded)
+		{
+			return BadRequest(result.Errors.Select(e => e.Description));
+		}
+
+		await signInManager.SignOutAsync();
+		return NoContent();
+	}
 }

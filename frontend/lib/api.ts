@@ -111,3 +111,14 @@ export async function logout(): Promise<void> {
 		throw new Error("Logout failed.");
 	}
 }
+
+export async function deleteCurrentUser(): Promise<void> {
+	const response = await fetch(`${API_BASE_URL}/api/auth/delete`, {
+		method: "DELETE",
+		credentials: "include",
+	});
+
+	if (!response.ok) {
+		throw new Error("Delete account failed.");
+	}
+}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { logout } from "@/lib/api";
+import { deleteCurrentUser, logout } from "@/lib/api";
 import { clearAuthEmail, getAuthEmail, subscribeAuthChanged } from "@/lib/authSession";
 
 export default function Nav() {
@@ -25,6 +25,22 @@ export default function Nav() {
 		}
 	}
 
+	async function handleDeleteAccount() {
+		const confirmed = window.confirm("Are you sure you want to delete your account?");
+		if (!confirmed) {
+			return;
+		}
+
+		try {
+			await deleteCurrentUser();
+			clearAuthEmail();
+			router.push("/");
+			router.refresh();
+		} catch {
+			window.alert("Account deletion failed. Please try again.");
+		}
+	}
+
 	return (
 		<nav>
 			<Link href="/" className="brand">📷 Photo as a Service</Link>
@@ -32,6 +48,7 @@ export default function Nav() {
 			{email ? (
 				<>
 					<span>{email}</span>
+					<button className="danger" onClick={handleDeleteAccount}>Delete account</button>
 					<button onClick={handleLogout}>Log out</button>
 				</>
 			) : (
