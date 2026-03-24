@@ -1,12 +1,20 @@
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Microsoft.EntityFrameworkCore;
 using PhotoAsAService.Api.Data;
 using PhotoAsAService.Api.Models;
 
 namespace PhotoAsAService.Api.Services;
 
-public class PhotoService(ApplicationDbContext dbContext, IWebHostEnvironment environment) : IPhotoService
+public class PhotoService(
+	ApplicationDbContext dbContext,
+	IConfiguration configuration) : IPhotoService
 {
 	private const string DefaultImageUrl = "/photo.jpg";
+	private readonly string _blobConnectionString = configuration["BlobStorage:ConnectionString"]
+		?? throw new InvalidOperationException("BlobStorage:ConnectionString is required.");
+	private readonly string _blobContainerName = configuration["BlobStorage:ContainerName"]
+		?? throw new InvalidOperationException("BlobStorage:ContainerName is required.");
 
 	public async Task<IReadOnlyList<Photo>> GetAllAsync(string sortBy, bool descending)
 	{
@@ -51,7 +59,7 @@ public class PhotoService(ApplicationDbContext dbContext, IWebHostEnvironment en
 
 		dbContext.Photos.Remove(photo);
 		await dbContext.SaveChangesAsync();
-		DeleteStoredFileIfExists(photo.ImageUrl);
+		await DeleteStoredFileIfExistsAsync(photo.ImageUrl);
 		return true;
 	}
 
@@ -62,32 +70,54 @@ public class PhotoService(ApplicationDbContext dbContext, IWebHostEnvironment en
 			return DefaultImageUrl;
 		}
 
-		var uploadsDirectory = Path.Combine(environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"), "uploads");
-		Directory.CreateDirectory(uploadsDirectory);
+		return await SaveUploadedFileToBlobAsync(file);
+	}
+
+	private async Task<string> SaveUploadedFileToBlobAsync(IFormFile file)
+	{
+		var containerClient = new BlobContainerClient(_blobConnectionString, _blobContainerName);
+		await containerClient.CreateIfNotExistsAsync();
 
 		var extension = Path.GetExtension(file.FileName);
 		var safeExtension = string.IsNullOrWhiteSpace(extension) ? ".jpg" : extension;
-		var fileName = $"{Guid.NewGuid():N}{safeExtension}";
-		var filePath = Path.Combine(uploadsDirectory, fileName);
+		var blobName = $"{Guid.NewGuid():N}{safeExtension}";
+		var blobClient = containerClient.GetBlobClient(blobName);
 
-		await using var stream = File.Create(filePath);
-		await file.CopyToAsync(stream);
+		await using var stream = file.OpenReadStream();
+		var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/jpeg" : file.ContentType;
+		await blobClient.UploadAsync(stream, new BlobUploadOptions
+		{
+			HttpHeaders = new BlobHttpHeaders
+			{
+				ContentType = contentType
+			}
+		});
 
-		return $"/uploads/{fileName}";
+		return blobClient.Uri.ToString();
 	}
 
-	private void DeleteStoredFileIfExists(string imageUrl)
+	private async Task DeleteStoredFileIfExistsAsync(string imageUrl)
 	{
-		if (!imageUrl.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+		if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var blobUri))
 		{
 			return;
 		}
 
-		var relativePath = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-		var absolutePath = Path.Combine(environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"), relativePath);
-		if (File.Exists(absolutePath))
+		var blobName = GetBlobName(blobUri);
+		if (!string.IsNullOrWhiteSpace(blobName))
 		{
-			File.Delete(absolutePath);
+			var containerClient = new BlobContainerClient(_blobConnectionString, _blobContainerName);
+			await containerClient.DeleteBlobIfExistsAsync(blobName);
 		}
+	}
+
+	private static string? GetBlobName(Uri blobUri)
+	{
+		if (blobUri.Segments.Length == 0)
+		{
+			return null;
+		}
+
+		return Uri.UnescapeDataString(blobUri.Segments[^1].Trim('/'));
 	}
 }
