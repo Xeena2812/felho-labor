@@ -1,4 +1,5 @@
 import random
+import uuid
 from typing import Any
 
 from locust import HttpUser, between, task
@@ -43,3 +44,57 @@ class AnonymousUser(HttpUser):
             ) as detail_response:
                 if detail_response.status_code != 200:
                     detail_response.failure(f"Unexpected status: {detail_response.status_code}")
+
+
+class AuthenticatedUser(HttpUser):
+    wait_time = between(0.2, 1.0)
+
+    def on_start(self) -> None:
+        self.password = "Test123!"
+        self.email = f"locust_{uuid.uuid4()}@example.com"
+        self.register_account()
+        self.login()
+
+    def register_account(self) -> None:
+        payload = {"email": self.email, "password": self.password}
+        with self.client.post(
+            "/api/auth/register",
+            json=payload,
+            name="POST /api/auth/register",
+            catch_response=True,
+        ) as response:
+            if response.status_code != 200:
+                response.failure(f"Unexpected status: {response.status_code}")
+
+    @task
+    def login(self) -> None:
+        payload = {"email": self.email, "password": self.password}
+        with self.client.post(
+            "/api/auth/login",
+            json=payload,
+            name="POST /api/auth/login",
+            catch_response=True,
+        ) as response:
+            if response.status_code != 200:
+                response.failure(f"Unexpected status: {response.status_code}")
+
+    @task
+    def logout(self) -> None:
+        with self.client.post(
+            "/api/auth/logout",
+            name="POST /api/auth/logout",
+            catch_response=True,
+        ) as response:
+            if response.status_code != 200:
+                response.failure(f"Unexpected status: {response.status_code}")
+
+    @task
+    def delete_account(self) -> None:
+        with self.client.delete(
+            "/api/auth/delete",
+            name="DELETE /api/auth/delete",
+            catch_response=True,
+        ) as response:
+            if response.status_code != 204:
+                response.failure(f"Unexpected status: {response.status_code}")
+                return
