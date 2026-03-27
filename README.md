@@ -26,6 +26,7 @@ A deployment GitHub Actions workflow-kon keresztül történik. Az App Service-e
 
 - Identity táblák és Photos tábla.
 - EF Core migrációk kezelik a séma létrehozását/frissítését.
+- A feltöltött képek Azure Blob Storageben vannak tárolva.
 
 ### Kapcsolatok a rétegek között
 
@@ -33,6 +34,24 @@ A deployment GitHub Actions workflow-kon keresztül történik. Az App Service-e
 - A backend EF Core segítségével kapcsolódik a PostgreSQL adatbázishoz.
 - A frontend és backend kapcsolatához Azureban megadott környezeti változók adják az engedélyezett origint a backendnek, és a backend címét a frontendnek. Illetve a DB connection stringjét is a backend számára.
 
-### Megjegyzés
+### Automatikus skálázódás
 
-Jelenleg a fotó fájlok lokálisan tárolódnak a backend oldalon. Nem tudtam hogy a Blob Storage használata ehhez a lépéshez tartozik-e.
+Az automatikus skálázódást a backend App Service Scale Out beállításával érem el. Itt az automatikus skálázást szabályokhoz lehet kötni. Én ezt a két szabály adtam meg:
+
+- Ha a CPU kihasználtság 2 percig legalább átlagosan 80%, induljon egy új instance.
+- Ha a CPU kihasználtság 2 percig legfeljebb átlagosan 30%, álljon le egy instance.
+
+A Scale Out helyes működését egy Azure Load Testing erőforrással futtatott locust scripttel ellenőriztem. A loadtest/locustfile.py script két féle felhasználót szimulál:
+
+- Egy be nem jelentkezett felhasználó aki csak lekéri a képeket és megnéz párat (legalább 5-öt).
+- Egy felhasználó aki a teljes "életciklust" végigcsinálja. Azaz:
+
+ 1. Regisztrál egy felhasználót
+ 2. Belép a regisztrált felhasználóval
+ 3. Feltölt (random macskás) képeket, lekéri a képeket, és megnéz képeket.
+ 4. Kitörli a feltöltött képeit.
+ 5. Kitörli a felhasználót.
+
+A load testet több konfigurációban is futtattam, 40-100 felhasználó között, 10-30 perces tesztekkel. A maximum instance limitet 10-re állítottam (ennyi elérhető azerőforrásnál), de általában nem volt mindre szükség. A load test futtatása során, a backend megfelően skálázódik fel, majd a teszt végeztével le, mint ahogy a képen látható.
+
+![Scale out](scale-out.png)
