@@ -17,6 +17,7 @@ def extract_photo_ids(payload: Any) -> list[int]:
 
 class AnonymousUser(HttpUser):
     wait_time = between(0.2, 1.5)
+    weight = 3
 
     @task
     def browse_photos(self) -> None:
@@ -50,10 +51,9 @@ class AnonymousUser(HttpUser):
 
 class AuthenticatedUser(HttpUser):
     wait_time = between(0.2, 1.0)
+    weight = 7
 
     def on_start(self) -> None:
-        self.password = "Test123!"
-        self.email = f"locust_{uuid.uuid4()}@example.com"
         self.known_photo_ids: list[int] = []
         self.created_photo_ids: list[int] = []
 
@@ -175,7 +175,7 @@ class AuthenticatedUser(HttpUser):
                 response.failure(f"Unexpected status: {response.status_code}")
 
     def delete_created_images(self) -> None:
-        delete_count = max(0, len(self.created_photo_ids) - 1)
+        delete_count = max(0, len(self.created_photo_ids))
         for _ in range(delete_count):
             photo_id = self.created_photo_ids.pop(0)
             with self.client.delete(
@@ -188,6 +188,8 @@ class AuthenticatedUser(HttpUser):
 
     @task
     def run_authenticated_session(self) -> None:
+        self.password = "Test123!"
+        self.email = f"locust_{uuid.uuid4()}@example.com"
         self.register_account()
         self.login()
 
@@ -207,4 +209,3 @@ class AuthenticatedUser(HttpUser):
         self.delete_created_images()
 
         self.delete_account()
-        raise StopUser()
