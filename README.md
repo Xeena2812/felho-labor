@@ -48,10 +48,13 @@ A Scale Out helyes működését egy Azure Load Testing erőforrással futtatott
 
  1. Regisztrál egy felhasználót
  2. Belép a regisztrált felhasználóval
- 3. Feltölt (random macskás) képeket, lekéri a képeket, és megnéz képeket.
+ 3. Feltölt (random macskás) képeket, lekéri a képeket, és megnéz néhány képet.
  4. Kitörli a feltöltött képeit.
  5. Kitörli a felhasználót.
 
-A load testet több konfigurációban is futtattam, 40-100 felhasználó között, 10-30 perces tesztekkel. A maximum instance limitet 10-re állítottam (ennyi elérhető azerőforrásnál), de általában nem volt mindre szükség. A load test futtatása során, a backend megfelően skálázódik fel, majd a teszt végeztével le, mint ahogy a képen látható.
+A load testet több konfigurációban is futtattam, 20-100 felhasználó között, 10-30 perces tesztekkel. A maximum instance limitet 10-re állítottam (ennyi elérhető azerőforrásnál), de általában nem volt mindre szükség. A load test futtatása során, a backend megfelően skálázódik fel, majd a teszt végeztével le, mint ahogy a képen látható.
 
 ![Scale out](scale-out.png)
+![Loadtest Logs](logs.png)
+
+A nagy válaszidő a POST kéréseknél a külső API-tól kért képeknek tudható be. A GET requestetk 404-es hibája pedig egy kis hiba miatt van amit a locust scriptben csináltam. A be nem lépett felhasználók megpróbálhatnak megnézni egy olyan képet, amit a lekérés és a kiválasztás között egy belépett felhasználó kitöröl.
